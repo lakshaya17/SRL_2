@@ -2,7 +2,7 @@ import streamlit as st
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 
 MODEL_ID = "lakshaya17/phi2-srl"
-HF_TOKEN = st.secrets["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"]
+HF_TOKEN = st.secrets["HUGGINGFACE_TOKEN"]
 
 @st.cache_resource
 def load_model():
