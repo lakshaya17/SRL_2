@@ -1,64 +1,62 @@
 import os
-import torch
 import streamlit as st
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+from huggingface_hub import login
+from dotenv import load_dotenv
 
-# Load Hugging Face token (from Streamlit Cloud secrets or .env)
-HF_TOKEN = os.environ.get("HUGGINGFACE_TOKEN")
+# Load token from Streamlit secrets or .env
+HF_TOKEN = st.secrets.get("HUGGINGFACE_TOKEN", None)
+if HF_TOKEN is None:
+    load_dotenv()
+    HF_TOKEN = os.getenv("HUGGINGFACE_TOKEN")
 
-# App title
-st.set_page_config(page_title="Chat with Fine-Tuned Phi-2")
-st.title("🚀 SRCL Fine-Tuned Phi-2 Chatbot")
+if HF_TOKEN is None:
+    st.error("❌ Hugging Face token not found. Add HUGGINGFACE_TOKEN to Streamlit secrets.")
+    st.stop()
+
+# Login to HF Hub
+login(HF_TOKEN)
 
 # Load model and tokenizer
-@st.cache_resource
+MODEL_ID = "lakshaya17/phi2-srl"
+
+@st.cache_resource(show_spinner="Loading model...")
 def load_model():
-    tokenizer = AutoTokenizer.from_pretrained(
-        "lakshaya17/phi2-srl",
-        token=HF_TOKEN
-    )
-    tokenizer.pad_token = tokenizer.eos_token
-    model = AutoModelForCausalLM.from_pretrained(
-        "lakshaya17/phi2-srl",
-        token=HF_TOKEN,
-        torch_dtype=torch.float32,
-        device_map="auto"
-    )
-    return tokenizer, model
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, token=HF_TOKEN)
+    model = AutoModelForCausalLM.from_pretrained(MODEL_ID, token=HF_TOKEN)
+    return pipeline("text-generation", model=model, tokenizer=tokenizer)
 
-tokenizer, model = load_model()
+llm_pipeline = load_model()
 
-# Session state to store chat history
+# Streamlit UI
+st.set_page_config(page_title="SRCL LLM Chat", page_icon="🛰️", layout="wide")
+st.title("🛰️ Fine-tuned Phi-2 LLM Chat (SRCL)")
+
+# Session state to maintain chat history
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Display chat history
+# Chat display
 for msg in st.session_state.messages:
-    st.chat_message(msg["role"]).markdown(msg["content"])
-
-# Chat input
-if prompt := st.chat_input("Ask me anything about SPOT, SRCL, or your setup..."):
-    st.chat_message("user").markdown(prompt)
-    st.session_state.messages.append({"role": "user", "content": prompt})
-
-    # Generate response
-    inputs = tokenizer(prompt, return_tensors="pt", return_token_type_ids=False).to(model.device)
-    outputs = model.generate(
-        **inputs,
-        max_new_tokens=512,
-        pad_token_id=tokenizer.eos_token_id,
-        do_sample=True,
-        top_k=50,
-        top_p=0.95,
-        temperature=0.7,
-    )
-    response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    response = response[len(prompt):].strip()
-
-    st.chat_message("assistant").markdown(response)
-    st.session_state.messages.append({"role": "assistant", "content": response})
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
 
 # Clear chat button
-if st.button("🧹 Clear Chat"):
+if st.button("🗑️ Clear Chat"):
     st.session_state.messages = []
     st.experimental_rerun()
+
+# Chat input
+user_input = st.chat_input("Ask something about SRCL, SPOT, or spacecraft systems...")
+if user_input:
+    st.session_state.messages.append({"role": "user", "content": user_input})
+    with st.chat_message("user"):
+        st.markdown(user_input)
+
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking..."):
+            # You can adjust max_new_tokens and temperature
+            response = llm_pipeline(user_input, max_new_tokens=300, do_sample=True, temperature=0.7)[0]["generated_text"]
+            cleaned_response = response[len(user_input):].strip()
+            st.markdown(cleaned_response)
+            st.session_state.messages.append({"role": "assistant", "content": cleaned_response})
