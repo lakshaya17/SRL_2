@@ -1,0 +1,11 @@
+streamlit
+google-generativeai
+duckduckgo-search
+requests
+beautifulsoup4
+trafilatura
+python-dotenv
+lxml[html_clean]
+transformers
+peft
+bitsandbytes
