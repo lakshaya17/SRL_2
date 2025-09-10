@@ -2,7 +2,7 @@ import streamlit as st
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 
 MODEL_ID = "lakshaya17/phi2-srl"
-HF_TOKEN = st.secrets["HUGGINGFACE_TOKEN"]
+HF_TOKEN = st.secrets["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"]
 
 @st.cache_resource
 def load_model():
@@ -17,3 +17,4 @@ if user_input:
     with st.spinner("Generating..."):
         result = llm_pipeline(user_input, max_new_tokens=200, do_sample=True, temperature=0.7)
         st.write(result[0]['generated_text'])
+
