@@ -12,7 +12,7 @@ st.markdown("Ask any question based on the fine-tuned SPOT/SRCL model.")
 # Load model and tokenizer
 @st.cache_resource
 def load_model():
-    model_path = "models/fine-tuned-phi2"  # Replace with your actual path or HuggingFace repo
+    model_path = "models/phi2_srcl_lora"  # Replace with your actual path or HuggingFace repo
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.float32)
     return tokenizer, model
@@ -35,3 +35,4 @@ if st.button("Generate Answer"):
         cleaned = response.replace(user_input, "").strip()
         st.markdown("**Answer:**")
         st.write(cleaned)
+
