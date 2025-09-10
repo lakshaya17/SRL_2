@@ -1,65 +1,64 @@
+import os
+import torch
 import streamlit as st
 from transformers import AutoTokenizer, AutoModelForCausalLM
-import torch
 
-# Load fine-tuned Phi-2 model from Hugging Face
+# Load Hugging Face token (from Streamlit Cloud secrets or .env)
+HF_TOKEN = os.environ.get("HUGGINGFACE_TOKEN")
+
+# App title
+st.set_page_config(page_title="Chat with Fine-Tuned Phi-2")
+st.title("🚀 SRCL Fine-Tuned Phi-2 Chatbot")
+
+# Load model and tokenizer
 @st.cache_resource
 def load_model():
-    tokenizer = AutoTokenizer.from_pretrained("lakshaya17/phi2-srl")
+    tokenizer = AutoTokenizer.from_pretrained(
+        "lakshaya17/phi2-srl",
+        token=HF_TOKEN
+    )
     tokenizer.pad_token = tokenizer.eos_token
     model = AutoModelForCausalLM.from_pretrained(
         "lakshaya17/phi2-srl",
-        torch_dtype=torch.float32,  # use float16 if GPU supports
+        token=HF_TOKEN,
+        torch_dtype=torch.float32,
         device_map="auto"
     )
     return tokenizer, model
 
 tokenizer, model = load_model()
 
-# Streamlit UI
-st.set_page_config(page_title="SRCL Fine-Tuned Chatbot", layout="wide")
-st.title("🚀 SRCL Fine-Tuned Phi-2 Chatbot")
-
-# Session state for chat history
+# Session state to store chat history
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Sidebar: Clear chat button
-with st.sidebar:
-    if st.button("🧹 Clear Chat History"):
-        st.session_state.messages = []
-        st.rerun()
-
-# Display previous messages
+# Display chat history
 for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+    st.chat_message(msg["role"]).markdown(msg["content"])
 
-# User input
-user_input = st.chat_input("Ask something about SRCL / SPOT lab...")
-if user_input:
-    # Add user message to history
-    st.session_state.messages.append({"role": "user", "content": user_input})
-    with st.chat_message("user"):
-        st.markdown(user_input)
+# Chat input
+if prompt := st.chat_input("Ask me anything about SPOT, SRCL, or your setup..."):
+    st.chat_message("user").markdown(prompt)
+    st.session_state.messages.append({"role": "user", "content": prompt})
 
-    with st.chat_message("assistant"):
-        with st.spinner("Generating response..."):
-            inputs = tokenizer.encode(user_input, return_tensors="pt").to(model.device)
-            output = model.generate(
-                inputs,
-                max_new_tokens=256,
-                do_sample=True,
-                temperature=0.7,
-                top_k=40,
-                top_p=0.95,
-                pad_token_id=tokenizer.eos_token_id
-            )
-            response = tokenizer.decode(output[0], skip_special_tokens=True)
-            # Trim prompt from response
-            response = response[len(user_input):].strip()
-            st.markdown(response)
+    # Generate response
+    inputs = tokenizer(prompt, return_tensors="pt", return_token_type_ids=False).to(model.device)
+    outputs = model.generate(
+        **inputs,
+        max_new_tokens=512,
+        pad_token_id=tokenizer.eos_token_id,
+        do_sample=True,
+        top_k=50,
+        top_p=0.95,
+        temperature=0.7,
+    )
+    response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    response = response[len(prompt):].strip()
 
-    # Add assistant response to history
+    st.chat_message("assistant").markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
 
+# Clear chat button
+if st.button("🧹 Clear Chat"):
+    st.session_state.messages = []
+    st.experimental_rerun()
