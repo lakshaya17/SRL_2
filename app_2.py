@@ -8,7 +8,7 @@ def load_model():
     tokenizer = AutoTokenizer.from_pretrained("lakshaya17/phi2-srl")
     tokenizer.pad_token = tokenizer.eos_token
     model = AutoModelForCausalLM.from_pretrained(
-        "your-username/your-finetuned-phi2",
+        "lakshaya17/phi2-srl",
         torch_dtype=torch.float32,  # use float16 if GPU supports
         device_map="auto"
     )
@@ -62,3 +62,4 @@ if user_input:
 
     # Add assistant response to history
     st.session_state.messages.append({"role": "assistant", "content": response})
+
